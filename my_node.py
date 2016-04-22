@@ -119,8 +119,7 @@ def rdf_update_labels(rdf, node):
     for i in final_list:
         node.add_label(i)
 
-
-def rdf_update_propertys(rdf, prop, obj, subj):
+def rdf_update_connections(rdf, prop, obj, subj, owl):
     """
         Finding all subPropertys
         and adding them to Datatbase
@@ -129,8 +128,10 @@ def rdf_update_propertys(rdf, prop, obj, subj):
     obj.relationships.create(conname, subj)
     for i in rdf.objects(subject=prop, predicate=RDFS.subPropertyOf):
         print(i)
-        rdf_update_propertys(rdf, i, obj, subj)
-
+        rdf_update_connections(rdf, i, obj, subj, owl)
+    for i in rdf.objects(subject=prop, predicate=owl.inverseOf):
+        conname = i.split('#')[-1]
+        subj.relationships.create(conname, obj)
 
 def gdb_add_node(node, gdb, rdf, owl):
     """
@@ -154,8 +155,8 @@ def gdb_add_connection(node, node_dict, rdf, owl):
         oname = obj.split('#')[-1]
         sname = sub.split('#')[-1]
         if (pro, RDF.type, owl.ObjectProperty) in rdf:
-            rdf_update_propertys(
-                rdf, pro, node_dict[sname].get_node(), node_dict[oname].get_node())
+            rdf_update_connections(
+                rdf, pro, node_dict[sname].get_node(), node_dict[oname].get_node(), owl)
 
 
 def rdf_loader(gdb, rdf):
