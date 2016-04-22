@@ -6,7 +6,7 @@ from rdflib import Graph
 from rdflib.namespace import RDF, RDFS
 from rdflib import Namespace
 from neo4jrestclient.client import GraphDatabase as GDB
-
+import keyring
 
 class NodeContainer:
     """
@@ -98,7 +98,7 @@ def test():
     rdf = Graph()
     rdf.parse("RDF2.owl", 'application/rdf+xml')
     gdb = GDB("http://localhost:7474/db/data",
-              username='neo4j', password='123456')
+              username='neo4j', password=keyring.get_password('neo4j','neo4j'))
     rdf_loader(gdb, rdf)
 
 
