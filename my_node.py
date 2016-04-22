@@ -30,11 +30,35 @@ class NodeContainer:
         """
         self.__name = name
 
+    def get_name(self):
+        """
+            Get's name to object
+        """
+        return self.__name
+
     def set_uri(self, uri):
         """
             Set's URI to object
         """
         self.__uri = uri
+
+    def set_node(self, node):
+        """
+            Set's graph db node to object
+        """
+        self.__node = node
+
+    def get_node(self):
+        """
+            Get's graph db node to object
+        """
+        return self.__node
+
+    def get_uri(self):
+        """
+            Set's URI to object
+        """
+        return self.__uri
 
     def add_props(self, prop_update):
         """
@@ -96,6 +120,44 @@ def rdf_update_labels(rdf, node):
         node.add_label(i)
 
 
+def rdf_update_propertys(rdf, prop, obj, subj):
+    """
+        Finding all subPropertys
+        and adding them to Datatbase
+    """
+    conname = prop.split('#')[-1]
+    obj.relationships.create(conname, subj)
+    for i in rdf.objects(subject=prop, predicate=RDFS.subPropertyOf):
+        print(i)
+        rdf_update_propertys(rdf, i, obj, subj)
+
+
+def gdb_add_node(node, gdb, rdf, owl):
+    """
+        adding node with labels
+    """
+    gdb_node = gdb.nodes.create()
+    node.set_node(gdb_node)
+    gdb_node.labels.add([label.split('#')[-1] for label in node.get_labels()])
+    for _, pro, obj in rdf.triples((node.get_uri(), None, None)):
+        if (pro, RDF.type, owl.DatatypeProperty) in rdf:
+            prop_name = pro.split('#')[-1]
+            value = obj.split('#')[-1]
+            gdb_node.set(prop_name, value)
+
+
+def gdb_add_connection(node, node_dict, rdf, owl):
+    """
+        adding connection
+    """
+    for sub, pro, obj in rdf.triples((node.get_uri(), None, None)):
+        oname = obj.split('#')[-1]
+        sname = sub.split('#')[-1]
+        if (pro, RDF.type, owl.ObjectProperty) in rdf:
+            rdf_update_propertys(
+                rdf, pro, node_dict[sname].get_node(), node_dict[oname].get_node())
+
+
 def rdf_loader(gdb, rdf):
     """
         Get Neo4j connection and rdf file
@@ -103,7 +165,6 @@ def rdf_loader(gdb, rdf):
     owl = Namespace("http://www.w3.org/2002/07/owl#")
     node_dict = {}
     for j in rdf.subjects(predicate=RDF.type, object=owl.Class):
-        jdata = (j.split('#')[-1])
         for i in rdf.subjects(object=j, predicate=RDF.type):
             idata = i.split('#')[-1]
             if idata in node_dict.keys():
@@ -119,6 +180,13 @@ def rdf_loader(gdb, rdf):
         rdf_update_labels(rdf, node_dict[i])
     for i in node_dict.keys():
         print("%s %s" % (i, node_dict[i],))
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    for i in node_dict.keys():
+        node = node_dict[i]
+        gdb_add_node(node, gdb, rdf, owl)
+    for i in node_dict.keys():
+        node = node_dict[i]
+        gdb_add_connection(node, node_dict, rdf, owl)
 
 
 def test():
