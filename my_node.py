@@ -8,6 +8,7 @@ from rdflib import Namespace
 from neo4jrestclient.client import GraphDatabase as GDB
 import keyring
 
+
 class NodeContainer:
     """
         Node data container
@@ -70,6 +71,31 @@ class NodeContainer:
         return name_str + label_str + propety_str
 
 
+def rdf_get_branch(rdf, label):
+    """
+        get all classes which considered as
+        parent class to label
+    """
+    buffer_list = [label, ]
+    for i in rdf.objects(subject=label, predicate=RDFS.subClassOf):
+        print(i)
+        buffer_list += rdf_get_branch(rdf, i)
+    return buffer_list
+
+
+def rdf_update_labels(rdf, node):
+    """
+        complit label list of node
+        with parent class labels
+    """
+    final_list = []
+    for i in node.get_labels():
+        # print(i)
+        final_list += rdf_get_branch(rdf, i)
+    for i in final_list:
+        node.add_label(i)
+
+
 def rdf_loader(gdb, rdf):
     """
         Get Neo4j connection and rdf file
@@ -81,12 +107,16 @@ def rdf_loader(gdb, rdf):
         for i in rdf.subjects(object=j, predicate=RDF.type):
             idata = i.split('#')[-1]
             if idata in node_dict.keys():
-                node_dict[idata].add_label(jdata)
+                node_dict[idata].add_label(j)
             else:
                 buf_node = NodeContainer(idata)
-                buf_node.add_label(jdata)
+                buf_node.add_label(j)
                 buf_node.set_uri(i)
                 node_dict.update({idata: buf_node})
+    for i in node_dict.keys():
+        print("%s %s" % (i, node_dict[i],))
+    for i in node_dict.keys():
+        rdf_update_labels(rdf, node_dict[i])
     for i in node_dict.keys():
         print("%s %s" % (i, node_dict[i],))
 
@@ -98,7 +128,7 @@ def test():
     rdf = Graph()
     rdf.parse("RDF2.owl", 'application/rdf+xml')
     gdb = GDB("http://localhost:7474/db/data",
-              username='neo4j', password=keyring.get_password('neo4j','neo4j'))
+              username='neo4j', password=keyring.get_password('neo4j', 'neo4j'))
     rdf_loader(gdb, rdf)
 
 
