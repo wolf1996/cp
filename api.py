@@ -9,6 +9,20 @@ from rdflib.namespace import RDF, RDFS
 from rdflib import Namespace
 from rdflib import URIRef, BNode, Literal
 
+my_ont = Namespace('http://www.semanticweb.org/ksg/ontologies/2016/3/untitled-ontology-20#')
+owl = Namespace("http://www.w3.org/2002/07/owl#")
+
+def add_genre(rdf, name):
+    gnode = URIRef(my_ont[name])
+    rdf.add((gnode, RDFS.subClassOf, URIRef(my_ont['Films'])))
+    return gnode
+
+def add_country(rdf, name):
+    cnode = URIRef(my_ont[name])
+    rdf.add((cnode, RDF.type, my_ont['Country']))
+    rdf.add((cnode, URIRef(my_ont['Country_Name']), Literal(name)))
+    return cnode
+
 class MovieNode:
     """
         Movie content node
@@ -95,6 +109,27 @@ class MovieNode:
         country_str = str(self.__country)
         return id_str + name_str + genre_str + country_str + year_str
 
+    def add_to_rdf(self, rdf):
+        """
+            adding to rdf some node
+        """
+        self.__node = URIRef(my_ont[self.__name.replace(' ','_')])
+        rdf.add((self.__node, URIRef(my_ont['Film_Name']), Literal(self.__name)))
+        for i in self.__genre:
+            gnode = add_genre(rdf,i)
+            rdf.add((self.__node, RDF.type, gnode))
+        for i in self.__country:
+            cnode = add_country(rdf,i)
+            rdf.add((self.__node,URIRef(my_ont['Release_country']),cnode))
+        rdf.add((self.__node, URIRef(my_ont['Link']), Literal(self.__id)))
+        rdf.add((self.__node, URIRef(my_ont['Year_Of_Release']), Literal(self.__release_year)))
+        print(self.__node)
+
+    def get_node(self):
+        """
+            get node
+        """
+        return self.__node
 
 
 class PersonNode:
@@ -200,21 +235,25 @@ class PersonNode:
         country_str = str(self.__country)
         return id_str + " "+ name_str +" "+ str_acted +" " + str_directed + " " +country_str + " " + year_str
 
-    def add_to_rdf(self, rdf):
+    def add_to_rdf(self, rdf, mov):
         """
             adding to rdf some node
         """
-        pnsp = Namespace('http://www.semanticweb.org/ksg/ontologies/2016/3/untitled-ontology-20#')
-        my_ont = Namespace('http://www.semanticweb.org/ksg/ontologies/2016/3/untitled-ontology-20#')
-        self.__node = URIRef(pnsp[self.__name.replace(' ','_')])
+        self.__node = URIRef(my_ont[self.__name.replace(' ','_')])
         if self.__acted:
             rdf.add((self.__node, RDF.type, URIRef(my_ont['Actor'])))
+            rdf.add((self.__node, my_ont['Acted_in'], mov.get_node()))
         if self.__directed:
             rdf.add((self.__node, RDF.type, URIRef(my_ont['Director'])))
+            rdf.add((self.__node, my_ont['Produced'], mov.get_node()))
+
         rdf.add((self.__node, URIRef(my_ont['Person_Name']), Literal(self.__name)))
+        cnode = add_country(rdf,self.__country)
+        rdf.add((self.__node,URIRef(my_ont['Country_of_birth']),cnode))
         rdf.add((self.__node, URIRef(my_ont['Link']), Literal(self.__id)))
         rdf.add((self.__node, URIRef(my_ont['Birth_Year']), Literal(self.__birth_year)))
         print(self.__node)
+
 
 def filmload(filmname,rdf):
     """
@@ -233,6 +272,7 @@ def filmload(filmname,rdf):
     mnode.set_country([i['name'] for i in movie['production_countries']])
     mnode.set_genre([i['name'] for i in movie['genres']])
     mnode.set_release_year(movie['release_date'].split('-')[0])
+    mnode.set_id(movie['id'])
     # print(movie.credits()['cast'][:4])
     #print(movie)
     print(mnode)
@@ -250,7 +290,7 @@ def filmload(filmname,rdf):
         if act['birthday']:
             node.set_birth_year(act['birthday'].split('-')[0])
         #print(node)
-        actors_node.update({node.get_id():str(node)})
+        actors_node.update({node.get_id():node})
         snode = node
 
     for i in movie_buf.credits()['crew']:
@@ -269,9 +309,11 @@ def filmload(filmname,rdf):
                     node.set_birth_year(act['birthday'].split('-')[0])
                 #print(act)
                 #print(node)
-                actors_node.update({node.get_id():str(node)})
-    print(actors_node)
-    snode.add_to_rdf(rdf)
+                actors_node.update({node.get_id():node})
+    #print(actors_node)
+    mnode.add_to_rdf(rdf)
+    for i in actors_node.keys():
+        actors_node[i].add_to_rdf(rdf, mnode)
 
 
 def test():
