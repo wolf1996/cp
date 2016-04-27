@@ -7,21 +7,31 @@ import apikey
 from rdflib import Graph
 from rdflib.namespace import RDF, RDFS
 from rdflib import Namespace
-from rdflib import URIRef, BNode, Literal
+from rdflib import URIRef, Literal
 
-my_ont = Namespace('http://www.semanticweb.org/ksg/ontologies/2016/3/untitled-ontology-20#')
-owl = Namespace("http://www.w3.org/2002/07/owl#")
+
+FIL = re.compile('\w+')
+MY_ONT = Namespace(
+    'http://www.semanticweb.org/ksg/ontologies/2016/3/untitled-ontology-20#') 
+OWL = Namespace("http://www.w3.org/2002/07/owl#")
+
 
 def add_genre(rdf, name):
-    gnode = URIRef(my_ont[name])
-    rdf.add((gnode, RDFS.subClassOf, URIRef(my_ont['Films'])))
+    """
+        adding genre to rdf
+    """
+    gnode = URIRef(MY_ONT[name.replace(' ', '_')])
+    rdf.add((gnode, RDFS.subClassOf, URIRef(MY_ONT['Films'])))
+    rdf.add((gnode, RDF.type, URIRef(OWL['Class'])))
     return gnode
 
+
 def add_country(rdf, name):
-    cnode = URIRef(my_ont[name])
-    rdf.add((cnode, RDF.type, my_ont['Country']))
-    rdf.add((cnode, URIRef(my_ont['Country_Name']), Literal(name)))
+    cnode = URIRef(MY_ONT[name.replace(' ', '_')])
+    rdf.add((cnode, RDF.type, MY_ONT['Country']))
+    rdf.add((cnode, URIRef(MY_ONT['Country_Name']), Literal(name)))
     return cnode
+
 
 class MovieNode:
     """
@@ -37,6 +47,7 @@ class MovieNode:
         self.__id = _id
         self.__genre = genre
         self.__release_year = release_year
+        self.__node = None
 
     def set_release_year(self, year):
         """
@@ -113,16 +124,18 @@ class MovieNode:
         """
             adding to rdf some node
         """
-        self.__node = URIRef(my_ont[self.__name.replace(' ','_')])
-        rdf.add((self.__node, URIRef(my_ont['Film_Name']), Literal(self.__name)))
+        self.__node = URIRef(MY_ONT[self.__name.replace(' ', '_')])
+        rdf.add((self.__node, URIRef(
+            MY_ONT['Film_Name']), Literal(self.__name)))
         for i in self.__genre:
-            gnode = add_genre(rdf,i)
+            gnode = add_genre(rdf, i)
             rdf.add((self.__node, RDF.type, gnode))
         for i in self.__country:
-            cnode = add_country(rdf,i)
-            rdf.add((self.__node,URIRef(my_ont['Release_country']),cnode))
-        rdf.add((self.__node, URIRef(my_ont['Link']), Literal(self.__id)))
-        rdf.add((self.__node, URIRef(my_ont['Year_Of_Release']), Literal(self.__release_year)))
+            cnode = add_country(rdf, i)
+            rdf.add((self.__node, URIRef(MY_ONT['Release_country']), cnode))
+        rdf.add((self.__node, URIRef(MY_ONT['Link']), Literal(self.__id)))
+        rdf.add((self.__node, URIRef(
+            MY_ONT['Year_Of_Release']), Literal(self.__release_year)))
         print(self.__node)
 
     def get_node(self):
@@ -136,7 +149,8 @@ class PersonNode:
     """
         person container
     """
-    def __init__(self, _id=None, name=None, acted="", directed="", country=None, birth_year = None):
+
+    def __init__(self, _id=None, name=None, acted="", directed="", country=None, birth_year=None):
         """
         """
         self.__name = name
@@ -233,37 +247,35 @@ class PersonNode:
         id_str = str(self.__id)
         year_str = str(self.__birth_year)
         country_str = str(self.__country)
-        return id_str + " "+ name_str +" "+ str_acted +" " + str_directed + " " +country_str + " " + year_str
+        return id_str + " " + name_str + " " + str_acted + " " + str_directed + " " + country_str + " " + year_str
 
     def add_to_rdf(self, rdf, mov):
         """
             adding to rdf some node
         """
-        self.__node = URIRef(my_ont[self.__name.replace(' ','_')])
+        self.__node = URIRef(MY_ONT[self.__name.replace(' ', '_')])
         if self.__acted:
-            rdf.add((self.__node, RDF.type, URIRef(my_ont['Actor'])))
-            rdf.add((self.__node, my_ont['Acted_in'], mov.get_node()))
+            rdf.add((self.__node, RDF.type, URIRef(MY_ONT['Actor'])))
+            rdf.add((self.__node, MY_ONT['Acted_in'], mov.get_node()))
         if self.__directed:
-            rdf.add((self.__node, RDF.type, URIRef(my_ont['Director'])))
-            rdf.add((self.__node, my_ont['Produced'], mov.get_node()))
-
-        rdf.add((self.__node, URIRef(my_ont['Person_Name']), Literal(self.__name)))
-        cnode = add_country(rdf,self.__country)
-        rdf.add((self.__node,URIRef(my_ont['Country_of_birth']),cnode))
-        rdf.add((self.__node, URIRef(my_ont['Link']), Literal(self.__id)))
-        rdf.add((self.__node, URIRef(my_ont['Birth_Year']), Literal(self.__birth_year)))
+            rdf.add((self.__node, RDF.type, URIRef(MY_ONT['Director'])))
+            rdf.add((self.__node, MY_ONT['Produced'], mov.get_node()))
+        rdf.add((self.__node, URIRef(
+            MY_ONT['Person_Name']), Literal(self.__name)))
+        if self.__country:
+            cnode = add_country(rdf, self.__country)
+            rdf.add((self.__node, URIRef(MY_ONT['Country_of_birth']), cnode))
+        rdf.add((self.__node, URIRef(MY_ONT['Link']), Literal(self.__id)))
+        rdf.add((self.__node, URIRef(
+            MY_ONT['Birth_Year']), Literal(self.__birth_year)))
         print(self.__node)
 
 
-def filmload(filmname,rdf):
+def filmload(movie_id, rdf):
     """
         Load film
     """
     snode = None
-    tmdb.API_KEY = apikey.key
-    search = tmdb.Search()
-    movie_id = search.movie(query=filmname)['results'][0]['id']
-    fil = re.compile('\w+')
     #movie_id = search.movie(query='Doctor Who')['results'][0]['id']
     movie_buf = tmdb.Movies(movie_id)
     movie = movie_buf.info()
@@ -274,23 +286,23 @@ def filmload(filmname,rdf):
     mnode.set_release_year(movie['release_date'].split('-')[0])
     mnode.set_id(movie['id'])
     # print(movie.credits()['cast'][:4])
-    #print(movie)
+    # print(movie)
     print(mnode)
     actors = movie_buf.credits()['cast'][:4]
     actors_node = {}
     for i in actors:
         node = PersonNode()
         act = tmdb.People(i['id']).info()
-        #print(act)
+        # print(act)
         node.set_name(act['name'])
         node.set_id(act['id'])
         node.set_acted(1)
         if act['place_of_birth']:
-            node.set_country(fil.findall(act['place_of_birth'])[-1])
+            node.set_country(FIL.findall(act['place_of_birth'])[-1])
         if act['birthday']:
             node.set_birth_year(act['birthday'].split('-')[0])
-        #print(node)
-        actors_node.update({node.get_id():node})
+        # print(node)
+        actors_node.update({node.get_id(): node})
         snode = node
 
     for i in movie_buf.credits()['crew']:
@@ -304,13 +316,13 @@ def filmload(filmname,rdf):
                 node.set_id(act['id'])
                 node.set_directed(1)
                 if act['place_of_birth']:
-                    node.set_country(fil.findall(act['place_of_birth'])[-1])
+                    node.set_country(FIL.findall(act['place_of_birth'])[-1])
                 if act['birthday']:
                     node.set_birth_year(act['birthday'].split('-')[0])
-                #print(act)
-                #print(node)
-                actors_node.update({node.get_id():node})
-    #print(actors_node)
+                # print(act)
+                # print(node)
+                actors_node.update({node.get_id(): node})
+    # print(actors_node)
     mnode.add_to_rdf(rdf)
     for i in actors_node.keys():
         actors_node[i].add_to_rdf(rdf, mnode)
@@ -326,5 +338,25 @@ def test():
     #lsresfile = open("rdfr.owl","w")
     rdf.serialize(destination="rdfr.owl")
 
+
+def main():
+    """
+        filling owl films
+    """
+    rdf = Graph()
+    rdf.parse("RDF2.owl", 'application/rdf+xml')
+    tmdb.API_KEY = apikey.key
+    search = tmdb.Search()
+    #movie_id = search.movie(query='')['results']
+    #movie_id = search.movie(query='lock stock and two smoking barrels')['results'][0]['id']
+    #filmload(movie_id, rdf)
+    mv = tmdb.Movies()
+    print(mv.popular(page=100))
+    for i in mv.popular(page=10)['results']:
+        filmload(i['id'],rdf)
+    #lsresfile = open("rdfr.owl","w")
+    rdf.serialize(destination="rdfr.owl")
+
+
 if __name__ == '__main__':
-    test()
+    main()

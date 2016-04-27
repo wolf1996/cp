@@ -125,6 +125,7 @@ def rdf_update_connections(rdf, prop, obj, subj, owl):
         and adding them to Datatbase
     """
     conname = prop.split('#')[-1]
+    print("createcon "+str(obj)+ " "  + str(subj))
     obj.relationships.create(conname, subj)
     for i in rdf.objects(subject=prop, predicate=RDFS.subPropertyOf):
         print(i)
@@ -170,11 +171,13 @@ def rdf_loader(gdb, rdf):
             idata = i.split('#')[-1]
             if idata in node_dict.keys():
                 node_dict[idata].add_label(j)
+                print(idata)
             else:
                 buf_node = NodeContainer(idata)
                 buf_node.add_label(j)
                 buf_node.set_uri(i)
                 node_dict.update({idata: buf_node})
+                print(idata)
     for i in node_dict.keys():
         print("%s %s" % (i, node_dict[i],))
     for i in node_dict.keys():
@@ -189,13 +192,12 @@ def rdf_loader(gdb, rdf):
         node = node_dict[i]
         gdb_add_connection(node, node_dict, rdf, owl)
 
-
 def test():
     """
        some tests
     """
     rdf = Graph()
-    rdf.parse("RDF2.owl", 'application/rdf+xml')
+    rdf.parse("rdfr.owl", 'application/rdf+xml')
     gdb = GDB("http://localhost:7474/db/data",
               username='neo4j', password=keyring.get_password('neo4j', 'neo4j'))
     rdf_loader(gdb, rdf)
